@@ -233,6 +233,33 @@ function DriverDashboard() {
 
   useEffect(() => () => { if (simRef.current) window.clearInterval(simRef.current); }, []);
 
+  // Keep ref pointing at latest startTrip so realtime callback can invoke it
+  useEffect(() => { startTripRef.current = startTrip; });
+
+  // ---- 15-second signal cycle along the corridor while trip is active ----
+  // Every 15s, advance one signal: previous goes back to red, next becomes priority_green.
+  useEffect(() => {
+    if (!tripActive || !destination || corridorSignals.length === 0) return;
+    let idx = 0;
+    const tick = async () => {
+      const upcoming = corridorSignals.filter((s) => s.distFromAmb > PASSED_DISTANCE);
+      if (upcoming.length === 0) return;
+      const current = upcoming[idx % upcoming.length];
+      const prev = upcoming[(idx - 1 + upcoming.length) % upcoming.length];
+      if (prev && prev.id !== current.id) {
+        await supabase.from("traffic_signals").update({ status: "red" }).eq("id", prev.id);
+      }
+      await supabase.from("traffic_signals")
+        .update({ status: "priority_green", last_activation: new Date().toISOString() })
+        .eq("id", current.id);
+      setLogs((l) => [`⏱ 15s cycle → ${current.junction_name} GREEN`, ...l].slice(0, 8));
+      idx += 1;
+    };
+    tick();
+    const t = window.setInterval(tick, 15000);
+    return () => window.clearInterval(t);
+  }, [tripActive, destination, corridorSignals]);
+
   // Hidden manual override — long press OR triple click on logo
   const startLongPress = () => {
     longPressRef.current = window.setTimeout(() => activateManualOverride("long_press"), 5000);
