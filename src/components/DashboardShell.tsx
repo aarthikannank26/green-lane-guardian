@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Radio, LogOut } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { NotificationsBell } from "@/components/NotificationsBell";
 import type { ReactNode } from "react";
 
 export function DashboardShell({
@@ -29,6 +30,7 @@ export function DashboardShell({
           </Link>
           <div className="flex items-center gap-3">
             <span className="hidden text-xs text-muted-foreground sm:inline">{user?.email}</span>
+            <NotificationsBell />
             <Button size="sm" variant="outline" onClick={signOut}>
               <LogOut className="size-4" />
               Sign out
