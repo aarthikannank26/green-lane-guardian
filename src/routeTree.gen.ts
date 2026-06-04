@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as HospitalRouteImport } from './routes/hospital'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -16,6 +17,11 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicGpsUpdateRouteImport } from './routes/api/public/gps/update'
 
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HospitalRoute = HospitalRouteImport.update({
   id: '/hospital',
   path: '/hospital',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/driver': typeof DriverRoute
   '/hospital': typeof HospitalRoute
+  '/reports': typeof ReportsRoute
   '/api/public/gps/update': typeof ApiPublicGpsUpdateRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/driver': typeof DriverRoute
   '/hospital': typeof HospitalRoute
+  '/reports': typeof ReportsRoute
   '/api/public/gps/update': typeof ApiPublicGpsUpdateRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/driver': typeof DriverRoute
   '/hospital': typeof HospitalRoute
+  '/reports': typeof ReportsRoute
   '/api/public/gps/update': typeof ApiPublicGpsUpdateRoute
 }
 export interface FileRouteTypes {
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/driver'
     | '/hospital'
+    | '/reports'
     | '/api/public/gps/update'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/driver'
     | '/hospital'
+    | '/reports'
     | '/api/public/gps/update'
   id:
     | '__root__'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/driver'
     | '/hospital'
+    | '/reports'
     | '/api/public/gps/update'
   fileRoutesById: FileRoutesById
 }
@@ -105,11 +117,19 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DriverRoute: typeof DriverRoute
   HospitalRoute: typeof HospitalRoute
+  ReportsRoute: typeof ReportsRoute
   ApiPublicGpsUpdateRoute: typeof ApiPublicGpsUpdateRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/hospital': {
       id: '/hospital'
       path: '/hospital'
@@ -161,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DriverRoute: DriverRoute,
   HospitalRoute: HospitalRoute,
+  ReportsRoute: ReportsRoute,
   ApiPublicGpsUpdateRoute: ApiPublicGpsUpdateRoute,
 }
 export const routeTree = rootRouteImport

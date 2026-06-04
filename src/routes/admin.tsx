@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMapEvents } from "react-leaflet";
 import { RoleGate } from "@/components/RoleGate";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -75,6 +75,9 @@ function AdminDashboard() {
 
   return (
     <DashboardShell title="Admin Control Center" subtitle="City-wide monitoring & management">
+      <div className="mb-4 flex justify-end">
+        <Link to="/reports"><Button variant="outline" size="sm"><Activity className="size-4" /> Reports & Replay</Button></Link>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="glass-card p-5">
