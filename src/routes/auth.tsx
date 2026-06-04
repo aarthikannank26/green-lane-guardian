@@ -32,7 +32,7 @@ const ROLE_META: Record<AppRole, { icon: typeof Ambulance; label: string }> = {
 };
 
 function AuthPage() {
-  const { role } = Route.useSearch();
+  const { role } = Route.useSearch() as { role: AppRole };
   const navigate = useNavigate();
   const { user, roles, loading } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
