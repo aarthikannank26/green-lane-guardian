@@ -142,3 +142,9 @@
 
 /* Leaflet tweaks */
 .leaflet-container { background: oklch(0.97 0.005 25); border-radius: var(--radius-lg); }
+
+/* Keep Leaflet panes/controls below modals (Radix Dialog is z-50) */
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom { z-index: 1 !important; }
+.leaflet-control { z-index: 2 !important; }

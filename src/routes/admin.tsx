@@ -164,7 +164,7 @@ function HospitalsManager({ hospitals, reload }: { hospitals: Hospital[]; reload
         <h3 className="font-semibold">Hospitals</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="size-4" /> Add Hospital</Button></DialogTrigger>
-          <DialogContent className="max-w-xl">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Add Hospital</DialogTitle></DialogHeader>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2 space-y-1"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
@@ -222,7 +222,7 @@ function SignalsManager({ signals, reload }: { signals: Signal[]; reload: () => 
         <h3 className="font-semibold">Traffic Signals</h3>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild><Button size="sm"><Plus className="size-4" /> Add Signal</Button></DialogTrigger>
-          <DialogContent className="max-w-xl">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Add Signal</DialogTitle></DialogHeader>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1"><Label>Signal Code</Label><Input value={form.signal_code} onChange={(e) => setForm({ ...form, signal_code: e.target.value })} /></div>
