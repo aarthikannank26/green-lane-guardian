@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Circle, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
@@ -23,6 +23,13 @@ export const hospitalIcon = L.divIcon({
   html: `<div style="width:30px;height:30px;border-radius:8px;background:white;border:2px solid oklch(0.58 0.22 27);display:grid;place-items:center;color:oklch(0.58 0.22 27);font-weight:700;">+</div>`,
   iconSize: [30, 30],
   iconAnchor: [15, 15],
+});
+
+export const accidentIcon = L.divIcon({
+  className: "",
+  html: `<div style="width:32px;height:32px;border-radius:50%;background:oklch(0.55 0.24 25);border:3px solid white;box-shadow:0 0 0 6px oklch(0.55 0.24 25 / 35%);display:grid;place-items:center;color:white;font-size:18px;font-weight:900;animation:pulse 1.2s ease-in-out infinite;">!</div>`,
+  iconSize: [32, 32],
+  iconAnchor: [16, 16],
 });
 
 export function signalIcon(status: "red" | "yellow" | "green" | "priority_green") {
@@ -74,4 +81,4 @@ export function CityMap({
   );
 }
 
-export { Marker, Polyline, CircleMarker };
+export { Marker, Polyline, CircleMarker, Circle };
