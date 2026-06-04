@@ -124,7 +124,7 @@ function DriverDashboard() {
   }, [ambulanceId, hospitals]);
 
   // Ref so the realtime callback can call startTrip after state is set
-  const startTripRef = useRef<(() => Promise<void>) | null>(null);
+  const startTripRef = useRef<(() => void | Promise<unknown>) | null>(null);
 
   // Filter hospitals (search + nearest)
   const filteredHospitals = useMemo(() => {
