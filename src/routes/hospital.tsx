@@ -205,16 +205,15 @@ function HospitalDashboard() {
         <div className="glass-card overflow-hidden p-0">
           <CityMap center={selected ? [selected.latitude, selected.longitude] : [12.9716, 77.5946]} zoom={12} className="h-[480px] w-full">
             {selected && <Marker position={[selected.latitude, selected.longitude]} icon={hospitalIcon} />}
-            {accidents.map((acc) => (
-              <span key={acc.id}>
-                <Marker position={[acc.latitude, acc.longitude]} icon={accidentIcon} />
-                <Circle
-                  center={[acc.latitude, acc.longitude]}
-                  radius={RADIUS_M}
-                  pathOptions={{ color: "oklch(0.55 0.24 25)", fillColor: "oklch(0.55 0.24 25)", fillOpacity: 0.12, weight: 1 }}
-                />
-              </span>
-            ))}
+            {accidents.flatMap((acc) => [
+              <Marker key={`m-${acc.id}`} position={[acc.latitude, acc.longitude]} icon={accidentIcon} />,
+              <Circle
+                key={`c-${acc.id}`}
+                center={[acc.latitude, acc.longitude]}
+                radius={RADIUS_M}
+                pathOptions={{ color: "oklch(0.55 0.24 25)", fillColor: "oklch(0.55 0.24 25)", fillOpacity: 0.12, weight: 1 }}
+              />,
+            ])}
             {ambulances.filter((a) => a.current_lat && a.current_lng).map((a) => (
               <Marker key={a.id} position={[a.current_lat!, a.current_lng!]} icon={ambulanceIcon} />
             ))}
