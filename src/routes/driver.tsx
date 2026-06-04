@@ -81,6 +81,51 @@ function DriverDashboard() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
+  // ---- Listen for accidents assigned to this ambulance ----
+  useEffect(() => {
+    if (!ambulanceId) return;
+    const handle = async (acc: { id: string; latitude: number; longitude: number; description: string | null; assigned_hospital_id: string | null }) => {
+      // load hospital from list (or fetch)
+      let hosp = hospitals.find((h) => h.id === acc.assigned_hospital_id) ?? null;
+      if (!hosp && acc.assigned_hospital_id) {
+        const { data } = await supabase.from("hospitals").select("*").eq("id", acc.assigned_hospital_id).single();
+        hosp = (data as Hospital) ?? null;
+      }
+      toast.error(`🚨 NEW EMERGENCY ASSIGNED · ${acc.description ?? "Accident"}`, { duration: 8000 });
+      // jump to accident location, then route to hospital
+      setPos([acc.latitude, acc.longitude]);
+      if (hosp) {
+        setDestination(hosp);
+        setAutoMode(true);
+        // auto-start after a short delay so state settles
+        setTimeout(() => { void startTripRef.current?.(); }, 800);
+      }
+      // notify the driver user too
+      if (user) {
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          type: "assignment",
+          title: `Emergency assigned to ${ambulanceId}`,
+          body: `${acc.description ?? "Accident"} — routing to ${hosp?.name ?? "hospital"}`,
+        });
+      }
+    };
+    const ch = supabase
+      .channel(`amb-${ambulanceId}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "accidents", filter: `assigned_ambulance_id=eq.${ambulanceId}` },
+        (p) => handle(p.new as Parameters<typeof handle>[0]))
+      .on("postgres_changes",
+        { event: "UPDATE", schema: "public", table: "accidents", filter: `assigned_ambulance_id=eq.${ambulanceId}` },
+        (p) => { if ((p.new as { status: string }).status === "assigned") handle(p.new as Parameters<typeof handle>[0]); })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+     
+  }, [ambulanceId, hospitals]);
+
+  // Ref so the realtime callback can call startTrip after state is set
+  const startTripRef = useRef<(() => Promise<void>) | null>(null);
+
   // Filter hospitals (search + nearest)
   const filteredHospitals = useMemo(() => {
     const q = search.toLowerCase();
