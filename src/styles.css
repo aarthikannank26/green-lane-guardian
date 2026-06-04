@@ -37,64 +37,63 @@
 
 :root {
   --radius: 0.75rem;
-  /* Smart City dark theme */
-  --background: oklch(0.18 0.03 250);
-  --foreground: oklch(0.98 0.005 250);
-  --card: oklch(0.22 0.035 250 / 70%);
-  --card-foreground: oklch(0.98 0.005 250);
-  --popover: oklch(0.22 0.035 250);
-  --popover-foreground: oklch(0.98 0.005 250);
-  --primary: oklch(0.65 0.18 240);
+  /* White + Red palette */
+  --background: oklch(0.99 0.003 20);
+  --foreground: oklch(0.18 0.02 25);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.02 25);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.02 25);
+  --primary: oklch(0.58 0.22 27);          /* signature red */
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.28 0.04 250);
-  --secondary-foreground: oklch(0.98 0.005 250);
-  --muted: oklch(0.26 0.03 250);
-  --muted-foreground: oklch(0.72 0.02 250);
-  --accent: oklch(0.7 0.18 160);
-  --accent-foreground: oklch(0.15 0.02 250);
-  --destructive: oklch(0.62 0.24 25);
+  --secondary: oklch(0.96 0.01 25);
+  --secondary-foreground: oklch(0.22 0.02 25);
+  --muted: oklch(0.96 0.008 25);
+  --muted-foreground: oklch(0.5 0.02 25);
+  --accent: oklch(0.94 0.04 25);
+  --accent-foreground: oklch(0.45 0.2 27);
+  --destructive: oklch(0.55 0.24 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.35 0.03 250 / 50%);
-  --input: oklch(0.3 0.03 250 / 60%);
-  --ring: oklch(0.65 0.18 240);
-  --success: oklch(0.72 0.18 150);
-  --warning: oklch(0.75 0.17 75);
-  --emergency: oklch(0.62 0.24 25);
-  --corridor: oklch(0.72 0.18 150);
+  --border: oklch(0.92 0.01 25);
+  --input: oklch(0.94 0.01 25);
+  --ring: oklch(0.58 0.22 27);
+  --success: oklch(0.62 0.18 150);
+  --warning: oklch(0.72 0.17 70);
+  --emergency: oklch(0.55 0.24 25);
+  --corridor: oklch(0.62 0.18 150);
 
-  --gradient-hero: linear-gradient(135deg, oklch(0.3 0.1 240), oklch(0.25 0.08 180));
-  --gradient-glow: radial-gradient(circle at 50% 0%, oklch(0.65 0.2 240 / 30%), transparent 70%);
-  --shadow-glow: 0 0 40px oklch(0.65 0.2 240 / 25%);
-  --shadow-glow-green: 0 0 30px oklch(0.7 0.2 150 / 40%);
-  --shadow-glow-red: 0 0 40px oklch(0.62 0.24 25 / 50%);
+  --gradient-hero: linear-gradient(135deg, oklch(0.99 0.005 20), oklch(0.96 0.04 25));
+  --gradient-glow: radial-gradient(circle at 50% 0%, oklch(0.58 0.22 27 / 12%), transparent 70%);
+  --shadow-card: 0 1px 2px oklch(0.18 0.02 25 / 6%), 0 8px 24px oklch(0.18 0.02 25 / 6%);
+  --shadow-glow-red: 0 0 30px oklch(0.58 0.22 27 / 25%);
+  --shadow-glow-green: 0 0 24px oklch(0.62 0.18 150 / 30%);
 }
 
 .dark {
-  --background: oklch(0.18 0.03 250);
-  --foreground: oklch(0.98 0.005 250);
-  --card: oklch(0.22 0.035 250 / 70%);
-  --card-foreground: oklch(0.98 0.005 250);
-  --popover: oklch(0.22 0.035 250);
-  --popover-foreground: oklch(0.98 0.005 250);
-  --primary: oklch(0.65 0.18 240);
+  /* Same tokens — app is light-mode only by request */
+  --background: oklch(0.99 0.003 20);
+  --foreground: oklch(0.18 0.02 25);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.18 0.02 25);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.18 0.02 25);
+  --primary: oklch(0.58 0.22 27);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.28 0.04 250);
-  --secondary-foreground: oklch(0.98 0.005 250);
-  --muted: oklch(0.26 0.03 250);
-  --muted-foreground: oklch(0.72 0.02 250);
-  --accent: oklch(0.7 0.18 160);
-  --accent-foreground: oklch(0.15 0.02 250);
-  --destructive: oklch(0.62 0.24 25);
+  --secondary: oklch(0.96 0.01 25);
+  --secondary-foreground: oklch(0.22 0.02 25);
+  --muted: oklch(0.96 0.008 25);
+  --muted-foreground: oklch(0.5 0.02 25);
+  --accent: oklch(0.94 0.04 25);
+  --accent-foreground: oklch(0.45 0.2 27);
+  --destructive: oklch(0.55 0.24 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.35 0.03 250 / 50%);
-  --input: oklch(0.3 0.03 250 / 60%);
-  --ring: oklch(0.65 0.18 240);
+  --border: oklch(0.92 0.01 25);
+  --input: oklch(0.94 0.01 25);
+  --ring: oklch(0.58 0.22 27);
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
+  * { border-color: var(--color-border); }
   html, body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -102,33 +101,29 @@
   }
   body {
     background-image:
-      radial-gradient(ellipse at top left, oklch(0.3 0.12 240 / 25%), transparent 60%),
-      radial-gradient(ellipse at bottom right, oklch(0.3 0.12 160 / 20%), transparent 60%);
+      radial-gradient(ellipse at top right, oklch(0.58 0.22 27 / 8%), transparent 55%),
+      radial-gradient(ellipse at bottom left, oklch(0.58 0.22 27 / 5%), transparent 55%);
     background-attachment: fixed;
   }
 }
 
 @layer components {
   .glass-card {
-    background-color: oklch(0.22 0.035 250 / 55%);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid oklch(0.5 0.05 250 / 30%);
+    background-color: oklch(1 0 0 / 85%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid oklch(0.92 0.01 25);
     border-radius: var(--radius-xl);
-    box-shadow: 0 4px 24px oklch(0 0 0 / 30%);
+    box-shadow: var(--shadow-card);
   }
-  .glow-primary { box-shadow: var(--shadow-glow); }
+  .glow-primary { box-shadow: var(--shadow-glow-red); }
   .glow-green { box-shadow: var(--shadow-glow-green); }
-  .glow-red { box-shadow: var(--shadow-glow-red); }
 
-  .emergency-border {
-    position: relative;
-  }
   .emergency-border::before {
     content: "";
     position: fixed;
     inset: 0;
-    border: 4px solid var(--emergency);
+    border: 5px solid var(--emergency);
     pointer-events: none;
     z-index: 9999;
     animation: emergencyPulse 1.2s ease-in-out infinite;
@@ -136,12 +131,14 @@
 }
 
 @keyframes emergencyPulse {
-  0%, 100% { box-shadow: inset 0 0 60px oklch(0.62 0.24 25 / 50%); opacity: 1; }
-  50% { box-shadow: inset 0 0 120px oklch(0.62 0.24 25 / 80%); opacity: 0.7; }
+  0%, 100% { box-shadow: inset 0 0 60px oklch(0.55 0.24 25 / 35%); opacity: 1; }
+  50% { box-shadow: inset 0 0 140px oklch(0.55 0.24 25 / 70%); opacity: 0.75; }
 }
-
 @keyframes signalBlink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
 .signal-blink { animation: signalBlink 1s ease-in-out infinite; }
+
+/* Leaflet tweaks */
+.leaflet-container { background: oklch(0.97 0.005 25); border-radius: var(--radius-lg); }

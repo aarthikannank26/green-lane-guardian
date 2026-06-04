@@ -14,6 +14,7 @@ import { Route as DriverRouteImport } from './routes/driver'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicGpsUpdateRouteImport } from './routes/api/public/gps/update'
 
 const HospitalRoute = HospitalRouteImport.update({
   id: '/hospital',
@@ -40,6 +41,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicGpsUpdateRoute = ApiPublicGpsUpdateRouteImport.update({
+  id: '/api/public/gps/update',
+  path: '/api/public/gps/update',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/driver': typeof DriverRoute
   '/hospital': typeof HospitalRoute
+  '/api/public/gps/update': typeof ApiPublicGpsUpdateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/driver': typeof DriverRoute
   '/hospital': typeof HospitalRoute
+  '/api/public/gps/update': typeof ApiPublicGpsUpdateRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,33 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/driver': typeof DriverRoute
   '/hospital': typeof HospitalRoute
+  '/api/public/gps/update': typeof ApiPublicGpsUpdateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/auth' | '/driver' | '/hospital'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/driver'
+    | '/hospital'
+    | '/api/public/gps/update'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/auth' | '/driver' | '/hospital'
-  id: '__root__' | '/' | '/admin' | '/auth' | '/driver' | '/hospital'
+  to:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/driver'
+    | '/hospital'
+    | '/api/public/gps/update'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/driver'
+    | '/hospital'
+    | '/api/public/gps/update'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +105,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DriverRoute: typeof DriverRoute
   HospitalRoute: typeof HospitalRoute
+  ApiPublicGpsUpdateRoute: typeof ApiPublicGpsUpdateRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +145,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/gps/update': {
+      id: '/api/public/gps/update'
+      path: '/api/public/gps/update'
+      fullPath: '/api/public/gps/update'
+      preLoaderRoute: typeof ApiPublicGpsUpdateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -125,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DriverRoute: DriverRoute,
   HospitalRoute: HospitalRoute,
+  ApiPublicGpsUpdateRoute: ApiPublicGpsUpdateRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
