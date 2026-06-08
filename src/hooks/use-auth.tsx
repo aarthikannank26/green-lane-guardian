@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, type AppRole } from "@/integrations/supabase/client";
+import { SVCE_EMAIL } from "@/lib/svce-seed";
 
 interface AuthCtx {
   session: Session | null;
@@ -27,22 +28,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
       if (s?.user) {
-        setTimeout(() => loadRoles(s.user.id), 0);
+        setTimeout(() => loadRoles(s.user.id, s.user.email ?? ""), 0);
       } else {
         setRoles([]);
       }
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session?.user) loadRoles(data.session.user.id);
+      if (data.session?.user) loadRoles(data.session.user.id, data.session.user.email ?? "");
       setLoading(false);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const loadRoles = async (userId: string) => {
+  const loadRoles = async (userId: string, email: string) => {
     const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    setRoles((data?.map((r) => r.role) as AppRole[]) ?? []);
+    const loadedRoles = (data?.map((r) => r.role) as AppRole[]) ?? [];
+    if (loadedRoles.length === 0 && email.toLowerCase() === SVCE_EMAIL) {
+      setRoles(["driver"]);
+    } else {
+      setRoles(loadedRoles);
+    }
   };
 
   return (

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { RoleGate } from "@/components/RoleGate";
 import { DashboardShell } from "@/components/DashboardShell";
-import { CityMap, Marker, Polyline, ambulanceIcon, hospitalIcon, signalIcon } from "@/components/CityMap";
+import { CityMap, Marker, Polyline, ambulanceIcon, hospitalIcon, accidentIcon, signalIcon } from "@/components/CityMap";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { ensureSvceAmbulanceRecord } from "@/lib/svce-seed";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,15 @@ interface Signal {
   status: "red" | "yellow" | "green" | "priority_green";
 }
 
+interface Accident {
+  id: string;
+  latitude: number;
+  longitude: number;
+  description: string | null;
+  assigned_hospital_id: string | null;
+  status: string;
+}
+
 const SIGNAL_TRIGGER_DISTANCE = 600; // meters: start considering signal
 const SIGNAL_GREEN_LEAD_SECONDS = 15; // turn green 15s before arrival
 const PASSED_DISTANCE = 60; // meters: consider signal passed
@@ -46,25 +56,43 @@ const DEFAULT_SPEED_MPS = 12; // ~43 km/h fallback when no speed
 
 function DriverDashboard() {
   const { user } = useAuth();
-  const [ambulanceId, setAmbulanceId] = useState("AMB001");
+  const [ambulanceId, setAmbulanceId] = useState("");
   const [pos, setPos] = useState<[number, number]>([12.9716, 77.5946]);
   const [speed, setSpeed] = useState(0);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<Hospital | null>(null);
+  const [assignedAccident, setAssignedAccident] = useState<Accident | null>(null);
+  const [routePath, setRoutePath] = useState<[number, number][]>([]);
+  const [accidentRoutePath, setAccidentRoutePath] = useState<[number, number][]>([]);
+  const [hospitalRoutePath, setHospitalRoutePath] = useState<[number, number][]>([]);
+  const [routeStage, setRouteStage] = useState<"to_accident" | "to_hospital" | null>(null);
+  const [routeStatus, setRouteStatus] = useState<string>("");
   const [autoMode, setAutoMode] = useState(true);
   const [tripActive, setTripActive] = useState(false);
   const [manualOverride, setManualOverride] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const simRef = useRef<number | null>(null);
+  const routeRef = useRef<[number, number][]>([]);
+  const routeIndexRef = useRef(0);
   const longPressRef = useRef<number | null>(null);
   const logoClicks = useRef<{ count: number; t: number }>({ count: 0, t: 0 });
+
+  useEffect(() => {
+    void ensureSvceAmbulanceRecord();
+  }, []);
 
   // Load hospitals + signals
   useEffect(() => {
     supabase.from("hospitals").select("*").then(({ data }) => setHospitals((data as Hospital[]) ?? []));
     supabase.from("traffic_signals").select("*").then(({ data }) => setSignals((data as Signal[]) ?? []));
+    if (ambulanceId) {
+      supabase.from("ambulances").select("current_lat,current_lng,current_speed,status").eq("ambulance_id", ambulanceId).single().then(({ data }) => {
+        if (data?.current_lat && data?.current_lng) setPos([data.current_lat, data.current_lng]);
+        if (data?.current_speed) setSpeed(data.current_speed);
+      });
+    }
     const ch = supabase
       .channel("driver-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "traffic_signals" }, (p) => {
@@ -79,28 +107,107 @@ function DriverDashboard() {
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, []);
+  }, [ambulanceId]);
+
+  useEffect(() => {
+    if (!user || ambulanceId) return;
+    const emailId = user.email?.split("@")[0];
+    if (emailId) setAmbulanceId(emailId.toUpperCase());
+  }, [user, ambulanceId]);
+
+  const normalizeRoute = (route: [number, number][]) => {
+    const cleaned = route.filter((point, index) => {
+      if (index === 0) return true;
+      const prev = route[index - 1];
+      return point[0] !== prev[0] || point[1] !== prev[1];
+    });
+    return cleaned.length > 1 ? cleaned : route;
+  };
+
+  const fetchRoadRoute = async (from: [number, number], to: [number, number]) => {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data || data.code !== "Ok" || !data.routes?.length) throw new Error("Route fetch failed");
+      return normalizeRoute((data.routes[0].geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng] as [number, number]));
+    } catch (error) {
+      console.warn("OSRM route failed, falling back to straight line", error);
+      return normalizeRoute([from, to]);
+    }
+  };
+
+  const prepareAssignedRoutes = async (acc: Accident, hosp: Hospital | null, currentPos: [number, number], stage: "to_accident" | "to_hospital") => {
+    const accidentRoute = await fetchRoadRoute(currentPos, [acc.latitude, acc.longitude]);
+    setAccidentRoutePath(accidentRoute);
+
+    let hospitalRoute: [number, number][] = [];
+    if (hosp) {
+      hospitalRoute = await fetchRoadRoute([acc.latitude, acc.longitude], [hosp.latitude, hosp.longitude]);
+      setHospitalRoutePath(hospitalRoute);
+    }
+
+    if (stage === "to_accident") {
+      setRoutePath(accidentRoute);
+      routeRef.current = accidentRoute;
+      routeIndexRef.current = 0;
+    } else if (stage === "to_hospital") {
+      setRoutePath(hospitalRoute.length ? hospitalRoute : accidentRoute);
+      routeRef.current = hospitalRoute.length ? hospitalRoute : accidentRoute;
+      routeIndexRef.current = 0;
+    }
+  };
+
+  const loadAssignedAccident = async (id: string) => {
+    const { data, error } = await supabase
+      .from("accidents")
+      .select("*")
+      .in("status", ["assigned", "en_route_to_accident", "en_route_to_hospital"])
+      .eq("assigned_ambulance_id", id)
+      .single();
+
+    if (error || !data) return;
+    const acc = data as Accident;
+    let hosp = hospitals.find((h) => h.id === acc.assigned_hospital_id) ?? null;
+    if (!hosp && acc.assigned_hospital_id) {
+      const { data: hospitalData } = await supabase.from("hospitals").select("*").eq("id", acc.assigned_hospital_id).single();
+      hosp = (hospitalData as Hospital) ?? null;
+    }
+
+    setAssignedAccident(acc);
+    setRouteStatus(acc.status === "en_route_to_hospital" ? "Heading to hospital" : "Heading to accident");
+    const stage = acc.status === "en_route_to_hospital" ? "to_hospital" : "to_accident";
+    setRouteStage(stage);
+    if (hosp) setDestination(hosp);
+    if (acc.latitude && acc.longitude) {
+      await prepareAssignedRoutes(acc, hosp, pos, stage);
+    }
+  };
+
 
   // ---- Listen for accidents assigned to this ambulance ----
   useEffect(() => {
     if (!ambulanceId) return;
-    const handle = async (acc: { id: string; latitude: number; longitude: number; description: string | null; assigned_hospital_id: string | null }) => {
-      // load hospital from list (or fetch)
+    void loadAssignedAccident(ambulanceId);
+
+    const handle = async (acc: Accident) => {
       let hosp = hospitals.find((h) => h.id === acc.assigned_hospital_id) ?? null;
       if (!hosp && acc.assigned_hospital_id) {
         const { data } = await supabase.from("hospitals").select("*").eq("id", acc.assigned_hospital_id).single();
         hosp = (data as Hospital) ?? null;
       }
       toast.error(`🚨 NEW EMERGENCY ASSIGNED · ${acc.description ?? "Accident"}`, { duration: 8000 });
-      // jump to accident location, then route to hospital
-      setPos([acc.latitude, acc.longitude]);
+      setAssignedAccident(acc);
+      setRouteStatus("Heading to accident");
       if (hosp) {
         setDestination(hosp);
-        setAutoMode(true);
-        // auto-start after a short delay so state settles
-        setTimeout(() => { void startTripRef.current?.(); }, 800);
       }
-      // notify the driver user too
+      setRouteStage("to_accident");
+      setAutoMode(true);
+      if (acc.latitude && acc.longitude) {
+        await prepareAssignedRoutes(acc, hosp, pos, "to_accident");
+        setTimeout(() => { void startTripRef.current?.(); }, 3000);
+      }
       if (user) {
         await supabase.from("notifications").insert({
           user_id: user.id,
@@ -109,19 +216,21 @@ function DriverDashboard() {
           body: `${acc.description ?? "Accident"} — routing to ${hosp?.name ?? "hospital"}`,
         });
       }
+      if (acc.id) {
+        await supabase.from("accidents").update({ status: "en_route_to_accident" }).eq("id", acc.id);
+      }
     };
     const ch = supabase
       .channel(`amb-${ambulanceId}`)
       .on("postgres_changes",
         { event: "INSERT", schema: "public", table: "accidents", filter: `assigned_ambulance_id=eq.${ambulanceId}` },
-        (p) => handle(p.new as Parameters<typeof handle>[0]))
+        (p) => handle(p.new as Accident))
       .on("postgres_changes",
         { event: "UPDATE", schema: "public", table: "accidents", filter: `assigned_ambulance_id=eq.${ambulanceId}` },
-        (p) => { if ((p.new as { status: string }).status === "assigned") handle(p.new as Parameters<typeof handle>[0]); })
+        (p) => { if ((p.new as Accident).status === "assigned") handle(p.new as Accident); })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-     
-  }, [ambulanceId, hospitals]);
+  }, [ambulanceId, hospitals, pos, user]);
 
   // Ref so the realtime callback can call startTrip after state is set
   const startTripRef = useRef<(() => void | Promise<unknown>) | null>(null);
@@ -135,31 +244,56 @@ function DriverDashboard() {
       .sort((a, b) => a._dist - b._dist);
   }, [hospitals, search, pos]);
 
-  // Distance to destination + route line
-  const distanceToDest = destination
-    ? haversine({ lat: pos[0], lng: pos[1] }, { lat: destination.latitude, lng: destination.longitude })
-    : 0;
-  const etaSeconds = destination ? distanceToDest / Math.max(speed || DEFAULT_SPEED_MPS, 3) : 0;
+  useEffect(() => {
+    if (tripActive || assignedAccident || !destination) return;
+    const loadHospitalRoute = async () => {
+      const route = await fetchRoadRoute(pos, [destination.latitude, destination.longitude]);
+      setRoutePath(route);
+      routeRef.current = route;
+      routeIndexRef.current = 0;
+      setRouteStage("to_hospital");
+      setRouteStatus("Ready to hospital");
+    };
+    void loadHospitalRoute();
+  }, [destination, pos, assignedAccident, tripActive]);
 
-  // Signals along route (within corridor of straight line)
+  // Distance to destination + route line
+  const currentRouteTarget = routeStage === "to_accident"
+    ? assignedAccident && { lat: assignedAccident.latitude, lng: assignedAccident.longitude }
+    : destination
+      ? { lat: destination.latitude, lng: destination.longitude }
+      : null;
+
+  const routeDistance = routePath.length > 1
+    ? routePath.slice(1).reduce((sum, point, index) => {
+      const prev = routePath[index];
+      return sum + haversine({ lat: prev[0], lng: prev[1] }, { lat: point[0], lng: point[1] });
+    }, 0)
+    : currentRouteTarget
+      ? haversine({ lat: pos[0], lng: pos[1] }, currentRouteTarget)
+      : 0;
+  const distanceToDest = routeDistance;
+  const etaSeconds = routeDistance ? routeDistance / Math.max(speed || DEFAULT_SPEED_MPS, 3) : 0;
+
+  // Signals along current route target (accident or hospital)
   const corridorSignals = useMemo(() => {
-    if (!destination) return [];
+    if (!currentRouteTarget) return [];
     return signals
       .map((s) => ({
         ...s,
         distFromAmb: haversine({ lat: pos[0], lng: pos[1] }, { lat: s.latitude, lng: s.longitude }),
-        distFromDest: haversine({ lat: destination.latitude, lng: destination.longitude }, { lat: s.latitude, lng: s.longitude }),
+        distFromDest: haversine(currentRouteTarget, { lat: s.latitude, lng: s.longitude }),
       }))
-      .filter((s) => s.distFromAmb + s.distFromDest < distanceToDest + 800) // ~800m corridor
+      .filter((s) => s.distFromAmb + s.distFromDest < distanceToDest + 800)
       .sort((a, b) => a.distFromAmb - b.distFromAmb);
-  }, [signals, destination, pos, distanceToDest]);
+  }, [signals, currentRouteTarget, pos, distanceToDest]);
 
   const upcomingSignals = corridorSignals.filter((s) => s.distFromAmb > PASSED_DISTANCE);
   const clearedSignals = corridorSignals.length - upcomingSignals.length;
 
   // Corridor engine — auto mode
   useEffect(() => {
-    if (!autoMode || !tripActive || !destination) return;
+    if (!autoMode || !tripActive || !currentRouteTarget) return;
     const sp = Math.max(speed || DEFAULT_SPEED_MPS, 3);
     corridorSignals.forEach(async (s) => {
       const etaToSignal = s.distFromAmb / sp;
@@ -178,48 +312,112 @@ function DriverDashboard() {
         setLogs((l) => [`↺ ${s.junction_name} → restored`, ...l].slice(0, 8));
       }
     });
-  }, [autoMode, tripActive, destination, corridorSignals, speed]);
+  }, [autoMode, tripActive, currentRouteTarget, corridorSignals, speed]);
 
-  // ESP32 GPS simulator — when trip active, moves ambulance toward destination
+  // ESP32 GPS simulator — when trip active, follows the route path
+  const advanceTrip = async () => {
+    const route = routeRef.current;
+    if (route.length < 2) return;
+
+    const nextIndex = routeIndexRef.current + 1;
+    if (nextIndex >= route.length) {
+      if (routeStage === "to_accident" && assignedAccident) {
+        setLogs((l) => [`🚨 Reached accident location`, ...l].slice(0, 8));
+        setRouteStatus("Picking up patient, routing to hospital");
+        await supabase.from("accidents").update({ status: "en_route_to_hospital" }).eq("id", assignedAccident.id);
+        await supabase.from("ambulances").update({ status: "en_route_to_hospital" }).eq("ambulance_id", ambulanceId);
+        if (destination) {
+          const newRoute = await fetchRoadRoute([assignedAccident.latitude, assignedAccident.longitude], [destination.latitude, destination.longitude]);
+          setRoutePath(newRoute);
+          setHospitalRoutePath(newRoute);
+          routeRef.current = newRoute;
+          routeIndexRef.current = 0;
+          setRouteStage("to_hospital");
+        }
+        return;
+      }
+
+      if (routeStage === "to_hospital" && assignedAccident) {
+        await supabase.from("accidents").update({ status: "completed" }).eq("id", assignedAccident.id);
+        await supabase.from("ambulances").update({ status: "idle", destination_hospital_id: null }).eq("ambulance_id", ambulanceId);
+        stopTrip();
+        toast.success("Arrived at hospital");
+        setRouteStatus("Completed");
+        setAssignedAccident(null);
+        setRouteStage(null);
+        setRoutePath([]);
+        return;
+      }
+
+      if (routeStage === "to_hospital" && !assignedAccident) {
+        await supabase.from("ambulances").update({ status: "idle", destination_hospital_id: null }).eq("ambulance_id", ambulanceId);
+        stopTrip();
+        toast.success("Arrived at hospital");
+        setRouteStatus("Completed");
+        setDestination(null);
+        setRouteStage(null);
+        setRoutePath([]);
+        return;
+      }
+
+      return;
+    }
+
+    const next = route[nextIndex];
+    routeIndexRef.current = nextIndex;
+    setPos(next);
+    setSpeed(14);
+    await supabase.from("gps_logs").insert({
+      ambulance_id: ambulanceId,
+      latitude: next[0],
+      longitude: next[1],
+      speed: 14,
+    });
+    await supabase
+      .from("ambulances")
+      .update({
+        current_lat: next[0],
+        current_lng: next[1],
+        current_speed: 14,
+        status: routeStage === "to_accident" ? "en_route_to_accident" : "on_trip",
+        last_update: new Date().toISOString(),
+      })
+      .eq("ambulance_id", ambulanceId);
+  };
+
   const startTrip = async () => {
-    if (!destination) return toast.error("Select a destination hospital first");
+    let route = routeRef.current.length > 1 ? routeRef.current : routePath;
+    if (route.length < 2) {
+      if (routeStage === "to_accident" && assignedAccident) {
+        route = await fetchRoadRoute(pos, [assignedAccident.latitude, assignedAccident.longitude]);
+      } else if (routeStage === "to_hospital" && destination) {
+        route = await fetchRoadRoute(pos, [destination.latitude, destination.longitude]);
+      }
+      if (route.length > 1) {
+        setRoutePath(route);
+        routeRef.current = route;
+      }
+    }
+
+    if (route.length < 2) {
+      return toast.error("Route unavailable");
+    }
+
+    routeRef.current = route;
+    routeIndexRef.current = 0;
+    setPos(route[0]);
     setTripActive(true);
-    setLogs((l) => [`▶ Trip started → ${destination.name}`, ...l]);
-    // Log corridor in DB
+    setLogs((l) => [`▶ Trip started ${routeStage === "to_accident" ? "→ accident" : "→ hospital"}`, ...l]);
     await supabase.from("emergency_corridors").insert({
       ambulance_id: ambulanceId,
-      destination_hospital_id: destination.id,
+      destination_hospital_id: destination?.id ?? null,
       mode: manualOverride ? "manual" : "automatic",
       created_by: user?.id,
     });
+
     if (simRef.current) window.clearInterval(simRef.current);
-    simRef.current = window.setInterval(() => {
-      setPos((curr) => {
-        const dx = destination.latitude - curr[0];
-        const dy = destination.longitude - curr[1];
-        const dist = Math.hypot(dx, dy);
-        if (dist < 0.0005) {
-          stopTrip();
-          toast.success("Arrived at destination");
-          return [destination.latitude, destination.longitude];
-        }
-        const step = 0.0008; // ~80m per tick
-        const next: [number, number] = [curr[0] + (dx / dist) * step, curr[1] + (dy / dist) * step];
-        // post GPS to DB
-        supabase.from("gps_logs").insert({
-          ambulance_id: ambulanceId,
-          latitude: next[0],
-          longitude: next[1],
-          speed: 14,
-        });
-        supabase
-          .from("ambulances")
-          .update({ current_lat: next[0], current_lng: next[1], current_speed: 14, status: "on_trip", last_update: new Date().toISOString() })
-          .eq("ambulance_id", ambulanceId);
-        return next;
-      });
-      setSpeed(14);
-    }, 1500);
+    await advanceTrip();
+    simRef.current = window.setInterval(advanceTrip, 1500);
   };
 
   const stopTrip = () => {
@@ -306,13 +504,20 @@ function DriverDashboard() {
         <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
           {/* Map */}
           <div className="glass-card overflow-hidden p-0">
-            <CityMap center={pos} zoom={14} recenter className="h-[460px] w-full">
+            <CityMap center={pos} zoom={14} recenter className="h-115 w-full">
               <Marker position={pos} icon={ambulanceIcon} />
-              {destination && (
-                <>
-                  <Marker position={[destination.latitude, destination.longitude]} icon={hospitalIcon} />
-                  <Polyline positions={[pos, [destination.latitude, destination.longitude]]} pathOptions={{ color: "oklch(0.58 0.22 27)", weight: 4, dashArray: "8 8" }} />
-                </>
+              {assignedAccident && (
+                <Marker position={[assignedAccident.latitude, assignedAccident.longitude]} icon={accidentIcon} />
+              )}
+              {destination && <Marker position={[destination.latitude, destination.longitude]} icon={hospitalIcon} />}
+              {accidentRoutePath.length > 1 && assignedAccident && (
+                <Polyline positions={accidentRoutePath} pathOptions={{ color: "oklch(0.55 0.24 25)", weight: 4, dashArray: "8 8" }} />
+              )}
+              {hospitalRoutePath.length > 1 && assignedAccident && (
+                <Polyline positions={hospitalRoutePath} pathOptions={{ color: "oklch(0.62 0.18 150)", weight: 4, dashArray: "4 10" }} />
+              )}
+              {!assignedAccident && routePath.length > 0 && (
+                <Polyline positions={routePath} pathOptions={{ color: "oklch(0.58 0.22 27)", weight: 4, dashArray: "8 8" }} />
               )}
               {signals.map((s) => (
                 <Marker key={s.id} position={[s.latitude, s.longitude]} icon={signalIcon(s.status)} />
@@ -347,6 +552,20 @@ function DriverDashboard() {
                 <Switch checked={autoMode} onCheckedChange={setAutoMode} disabled={manualOverride} />
               </div>
             </div>
+
+            {assignedAccident && (
+              <div className="glass-card p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold">Assigned Accident</p>
+                    <p className="text-xs text-muted-foreground">{routeStage === "to_accident" ? "Heading to accident" : "Heading to hospital"}</p>
+                  </div>
+                  <Badge variant="outline">{routeStatus || assignedAccident.status}</Badge>
+                </div>
+                <p className="text-sm font-medium">{assignedAccident.description || "No description"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{assignedAccident.latitude.toFixed(4)}, {assignedAccident.longitude.toFixed(4)}</p>
+              </div>
+            )}
 
             {/* Hospital select */}
             <div className="glass-card p-4">
